@@ -1,0 +1,16 @@
+[package]
+name = "subscription_protocol"
+version = "1.0.0"
+authors = []
+
+[addresses]
+subscription = "0xdc41a9c2956e2a2655481fac6b86bd0cabcfb451e82e31eb74741d7ccda20168"
+
+[dev-addresses]
+
+[dependencies.AptosFramework]
+git = "https://github.com/aptos-labs/aptos-framework.git"
+rev = "mainnet"
+subdir = "aptos-framework"
+
+[dev-dependencies]
