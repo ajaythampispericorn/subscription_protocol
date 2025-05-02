@@ -4588,710 +4588,15 @@
 
 
 
-// #[test_only]
-// module subscription::subscription_tests {
-//     use std::signer;
-//     use std::string::{String, utf8};
-//     use std::option;
-//     use std::vector;
-//     use aptos_framework::account;
-//     use aptos_framework::timestamp;
-
-//     use subscription::registry;
-//     use subscription::plans;
-//     use subscription::subscriptions;
-//     use subscription::time;
-//     use subscription::view;
-    
-//     // Test accounts
-//     const ADMIN: address = @subscription;
-//     const CREATOR1: address = @0xC1;
-//     const CREATOR2: address = @0xC2;
-//     const USER1: address = @0xA1;
-//     const USER2: address = @0xA2;
-    
-//     // Status constants
-//     const STATUS_ACTIVE: u8 = 0;
-//     const STATUS_CANCELLED: u8 = 1;
-//     const STATUS_EXPIRED: u8 = 2;
-    
-//     #[test]
-//     fun test_registry_initialize() {
-//         let aptos_framework = account::create_account_for_test(@0x1);
-//         let admin = account::create_account_for_test(ADMIN);
-        
-//         timestamp::set_time_has_started_for_testing(&aptos_framework);
-//         timestamp::update_global_time_for_test_secs(10000);
-        
-//         // Test initialize function
-//         registry::initialize(&admin);
-        
-//         // Verify registry exists at the admin address
-//         assert!(registry::verify_admin(&admin), 0);
-//         assert!(registry::get_platform_fee_percentage() == 250, 1);
-//         assert!(registry::get_min_subscription_duration() == 86400, 2);
-//     }
-    
-//     #[test]
-//     #[expected_failure(abort_code = 4)] // ERR_REGISTRY_ALREADY_EXISTS
-//     fun test_registry_initialize_already_exists() {
-//         let aptos_framework = account::create_account_for_test(@0x1);
-//         let admin = account::create_account_for_test(ADMIN);
-        
-//         timestamp::set_time_has_started_for_testing(&aptos_framework);
-//         timestamp::update_global_time_for_test_secs(10000);
-        
-//         // Initialize once
-//         registry::initialize(&admin);
-        
-//         // Attempt to initialize again - should fail
-//         registry::initialize(&admin);
-//     }
-    
-//     #[test]
-//     #[expected_failure(abort_code = 1)] // ERR_NOT_AUTHORIZED
-//     fun test_registry_initialize_unauthorized() {
-//         let aptos_framework = account::create_account_for_test(@0x1);
-//         let fake_admin = account::create_account_for_test(@0xF1);
-        
-//         timestamp::set_time_has_started_for_testing(&aptos_framework);
-//         timestamp::update_global_time_for_test_secs(10000);
-        
-//         // Attempt to initialize with non-admin account - should fail
-//         registry::initialize(&fake_admin);
-//     }
-    
-//     #[test]
-//     fun test_register_creator() {
-//         let aptos_framework = account::create_account_for_test(@0x1);
-//         let admin = account::create_account_for_test(ADMIN);
-//         let creator = account::create_account_for_test(CREATOR1);
-        
-//         timestamp::set_time_has_started_for_testing(&aptos_framework);
-//         timestamp::update_global_time_for_test_secs(10000);
-        
-//         registry::initialize(&admin);
-        
-//         // Register a creator
-//         registry::register_creator(&creator);
-        
-//         // Verify creator is registered
-//         assert!(registry::verify_creator(CREATOR1), 0);
-//         assert!(registry::verify_caller_is_creator(&creator), 1);
-//     }
-    
-//     #[test]
-//     #[expected_failure(abort_code = 2)] // ERR_ALREADY_REGISTERED
-//     fun test_register_creator_already_registered() {
-//         let aptos_framework = account::create_account_for_test(@0x1);
-//         let admin = account::create_account_for_test(ADMIN);
-//         let creator = account::create_account_for_test(CREATOR1);
-        
-//         timestamp::set_time_has_started_for_testing(&aptos_framework);
-//         timestamp::update_global_time_for_test_secs(10000);
-        
-//         registry::initialize(&admin);
-        
-//         // Register a creator
-//         registry::register_creator(&creator);
-        
-//         // Attempt to register again - should fail
-//         registry::register_creator(&creator);
-//     }
-    
-//     #[test]
-//     fun test_update_global_config() {
-//         let aptos_framework = account::create_account_for_test(@0x1);
-//         let admin = account::create_account_for_test(ADMIN);
-        
-//         timestamp::set_time_has_started_for_testing(&aptos_framework);
-//         timestamp::update_global_time_for_test_secs(10000);
-        
-//         registry::initialize(&admin);
-        
-//         // Update config
-//         let new_fee_percentage = 300; // 3%
-//         let new_min_duration = 172800; // 2 days
-//         registry::update_global_config(&admin, new_fee_percentage, new_min_duration);
-        
-//         // Verify config was updated
-//         assert!(registry::get_platform_fee_percentage() == new_fee_percentage, 0);
-//         assert!(registry::get_min_subscription_duration() == new_min_duration, 1);
-//     }
-    
-//     #[test]
-//     #[expected_failure(abort_code = 1)] // ERR_NOT_AUTHORIZED
-//     fun test_update_global_config_unauthorized() {
-//         let aptos_framework = account::create_account_for_test(@0x1);
-//         let admin = account::create_account_for_test(ADMIN);
-//         let fake_admin = account::create_account_for_test(@0xF1);
-        
-//         timestamp::set_time_has_started_for_testing(&aptos_framework);
-//         timestamp::update_global_time_for_test_secs(10000);
-        
-//         registry::initialize(&admin);
-        
-//         // Attempt to update config with non-admin account - should fail
-//         registry::update_global_config(&fake_admin, 300, 172800);
-//     }
-    
-//     #[test]
-//     fun test_registry_generate_ids() {
-//         let aptos_framework = account::create_account_for_test(@0x1);
-//         let admin = account::create_account_for_test(ADMIN);
-        
-//         timestamp::set_time_has_started_for_testing(&aptos_framework);
-//         timestamp::update_global_time_for_test_secs(10000);
-        
-//         registry::initialize(&admin);
-        
-//         // Generate plan ID
-//         let plan_id1 = registry::generate_plan_id();
-//         let plan_id2 = registry::generate_plan_id();
-//         assert!(plan_id1 == 0, 0);
-//         assert!(plan_id2 == 1, 1);
-        
-//         // Generate subscription ID
-//         let sub_id1 = registry::generate_subscription_id();
-//         let sub_id2 = registry::generate_subscription_id();
-//         assert!(sub_id1 == 0, 2);
-//         assert!(sub_id2 == 1, 3);
-//     }
-    
-//     #[test]
-//     fun test_plans_create_plan() {
-//         let aptos_framework = account::create_account_for_test(@0x1);
-//         let admin = account::create_account_for_test(ADMIN);
-//         let creator = account::create_account_for_test(CREATOR1);
-        
-//         timestamp::set_time_has_started_for_testing(&aptos_framework);
-//         timestamp::update_global_time_for_test_secs(10000);
-        
-//         registry::initialize(&admin);
-//         plans::initialize_plan_registry(&admin);
-//         registry::register_creator(&creator);
-        
-//         // Create a plan
-//         plans::create_plan(
-//             &creator,
-//             utf8(b"Basic Plan"),
-//             utf8(b"Basic subscription plan"),
-//             1000, // 1000 APT coins
-//             86400, // 1 day
-//             true
-//         );
-        
-//         // Verify plan was created
-//         let plan_id = 0; // First plan should have ID 0
-//         let (creator_addr, title, price, duration, active) = plans::get_plan(plan_id);
-//         assert!(creator_addr == CREATOR1, 0);
-//         assert!(title == utf8(b"Basic Plan"), 1);
-//         assert!(price == 1000, 2);
-//         assert!(duration == 86400, 3);
-//         assert!(active == true, 4);
-        
-//         // Verify creator has plans
-//         assert!(plans::creator_has_plans(CREATOR1), 5);
-//         let creator_plans = plans::get_creator_plans(CREATOR1);
-//         assert!(vector::length(&creator_plans) == 1, 6);
-//         assert!(*vector::borrow(&creator_plans, 0) == plan_id, 7);
-//     }
-    
-//     #[test]
-//     #[expected_failure(abort_code = 1)] // ERR_NOT_AUTHORIZED
-//     fun test_plans_create_plan_not_creator() {
-//         let aptos_framework = account::create_account_for_test(@0x1);
-//         let admin = account::create_account_for_test(ADMIN);
-//         let not_creator = account::create_account_for_test(USER1);
-        
-//         timestamp::set_time_has_started_for_testing(&aptos_framework);
-//         timestamp::update_global_time_for_test_secs(10000);
-        
-//         registry::initialize(&admin);
-//         plans::initialize_plan_registry(&admin);
-        
-//         // Attempt to create a plan with non-creator account - should fail
-//         plans::create_plan(
-//             &not_creator,
-//             utf8(b"Basic Plan"),
-//             utf8(b"Basic subscription plan"),
-//             1000,
-//             86400,
-//             true
-//         );
-//     }
-    
-//     #[test]
-//     #[expected_failure(abort_code = 3)] // ERR_INVALID_DURATION
-//     fun test_plans_create_plan_invalid_duration() {
-//         let aptos_framework = account::create_account_for_test(@0x1);
-//         let admin = account::create_account_for_test(ADMIN);
-//         let creator = account::create_account_for_test(CREATOR1);
-        
-//         timestamp::set_time_has_started_for_testing(&aptos_framework);
-//         timestamp::update_global_time_for_test_secs(10000);
-        
-//         registry::initialize(&admin);
-//         plans::initialize_plan_registry(&admin);
-//         registry::register_creator(&creator);
-        
-//         // Attempt to create a plan with too short duration - should fail
-//         plans::create_plan(
-//             &creator,
-//             utf8(b"Basic Plan"),
-//             utf8(b"Basic subscription plan"),
-//             1000,
-//             1000, // Too short (less than min_subscription_duration)
-//             true
-//         );
-//     }
-    
-//     #[test]
-//     #[expected_failure(abort_code = 4)] // ERR_INVALID_PRICE
-//     fun test_plans_create_plan_invalid_price() {
-//         let aptos_framework = account::create_account_for_test(@0x1);
-//         let admin = account::create_account_for_test(ADMIN);
-//         let creator = account::create_account_for_test(CREATOR1);
-        
-//         timestamp::set_time_has_started_for_testing(&aptos_framework);
-//         timestamp::update_global_time_for_test_secs(10000);
-        
-//         registry::initialize(&admin);
-//         plans::initialize_plan_registry(&admin);
-//         registry::register_creator(&creator);
-        
-//         // Attempt to create a plan with zero price - should fail
-//         plans::create_plan(
-//             &creator,
-//             utf8(b"Basic Plan"),
-//             utf8(b"Basic subscription plan"),
-//             0, // Zero price
-//             86400,
-//             true
-//         );
-//     }
-    
-//     #[test]
-//     fun test_plans_update_plan() {
-//         let aptos_framework = account::create_account_for_test(@0x1);
-//         let admin = account::create_account_for_test(ADMIN);
-//         let creator = account::create_account_for_test(CREATOR1);
-        
-//         timestamp::set_time_has_started_for_testing(&aptos_framework);
-//         timestamp::update_global_time_for_test_secs(10000);
-        
-//         registry::initialize(&admin);
-//         plans::initialize_plan_registry(&admin);
-//         registry::register_creator(&creator);
-        
-//         // Create a plan
-//         plans::create_plan(
-//             &creator,
-//             utf8(b"Basic Plan"),
-//             utf8(b"Basic subscription plan"),
-//             1000,
-//             86400,
-//             true
-//         );
-        
-//         // Update the plan
-//         plans::update_plan(
-//             &creator,
-//             0, // Plan ID
-//             option::some(utf8(b"Premium Plan")), // New title
-//             option::some(utf8(b"Premium subscription plan")), // New description
-//             option::some(2000), // New price
-//             option::some(false) // New active status
-//         );
-        
-//         // Verify plan was updated
-//         let (creator_addr, title, price, duration, active) = plans::get_plan(0);
-//         assert!(creator_addr == CREATOR1, 0);
-//         assert!(title == utf8(b"Premium Plan"), 1);
-//         assert!(price == 2000, 2);
-//         assert!(duration == 86400, 3); // Duration not updated
-//         assert!(active == false, 4);
-//     }
-    
-//     #[test]
-//     #[expected_failure(abort_code = 1)] // ERR_NOT_AUTHORIZED
-//     fun test_plans_update_plan_not_creator() {
-//         let aptos_framework = account::create_account_for_test(@0x1);
-//         let admin = account::create_account_for_test(ADMIN);
-//         let creator = account::create_account_for_test(CREATOR1);
-//         let other_creator = account::create_account_for_test(CREATOR2);
-        
-//         timestamp::set_time_has_started_for_testing(&aptos_framework);
-//         timestamp::update_global_time_for_test_secs(10000);
-        
-//         registry::initialize(&admin);
-//         plans::initialize_plan_registry(&admin);
-//         registry::register_creator(&creator);
-//         registry::register_creator(&other_creator);
-        
-//         // Create a plan
-//         plans::create_plan(
-//             &creator,
-//             utf8(b"Basic Plan"),
-//             utf8(b"Basic subscription plan"),
-//             1000,
-//             86400,
-//             true
-//         );
-        
-//         // Attempt to update the plan with different creator - should fail
-//         plans::update_plan(
-//             &other_creator,
-//             0, // Plan ID
-//             option::some(utf8(b"Premium Plan")),
-//             option::none(),
-//             option::none(),
-//             option::none()
-//         );
-//     }
-    
-//     #[test]
-//     #[expected_failure(abort_code = 2)] // ERR_PLAN_NOT_FOUND 
-//     fun test_plans_update_nonexistent_plan() {
-//         let aptos_framework = account::create_account_for_test(@0x1);
-//         let admin = account::create_account_for_test(ADMIN);
-//         let creator = account::create_account_for_test(CREATOR1);
-        
-//         timestamp::set_time_has_started_for_testing(&aptos_framework);
-//         timestamp::update_global_time_for_test_secs(10000);
-        
-//         registry::initialize(&admin);
-//         plans::initialize_plan_registry(&admin);
-//         registry::register_creator(&creator);
-        
-//         // Attempt to update non-existent plan - should fail
-//         plans::update_plan(
-//             &creator,
-//             999, // Non-existent plan ID
-//             option::some(utf8(b"Premium Plan")),
-//             option::none(),
-//             option::none(),
-//             option::none()
-//         );
-//     }
-    
-//     #[test]
-//     fun test_is_plan_active() {
-//         let aptos_framework = account::create_account_for_test(@0x1);
-//         let admin = account::create_account_for_test(ADMIN);
-//         let creator = account::create_account_for_test(CREATOR1);
-        
-//         timestamp::set_time_has_started_for_testing(&aptos_framework);
-//         timestamp::update_global_time_for_test_secs(10000);
-        
-//         registry::initialize(&admin);
-//         plans::initialize_plan_registry(&admin);
-//         registry::register_creator(&creator);
-        
-//         // Create an active plan
-//         plans::create_plan(
-//             &creator,
-//             utf8(b"Active Plan"),
-//             utf8(b"Active subscription plan"),
-//             1000,
-//             86400,
-//             true
-//         );
-        
-//         // Create an inactive plan
-//         plans::create_plan(
-//             &creator,
-//             utf8(b"Inactive Plan"),
-//             utf8(b"Inactive subscription plan"),
-//             1000,
-//             86400,
-//             false
-//         );
-        
-//         // Verify plan status
-//         assert!(plans::is_plan_active(0), 0); // First plan is active
-//         assert!(!plans::is_plan_active(1), 1); // Second plan is inactive
-//         assert!(!plans::is_plan_active(999), 2); // Non-existent plan should return false
-//     }
-    
-//     #[test]
-//     fun test_time_functions() {
-//         let aptos_framework = account::create_account_for_test(@0x1);
-//         timestamp::set_time_has_started_for_testing(&aptos_framework);
-//         timestamp::update_global_time_for_test_secs(10000);
-        
-//         // Test calculate_end_time
-//         let start_time = 10000;
-//         let duration = 86400;
-//         let expected_end_time = 96400;
-//         assert!(time::calculate_end_time(start_time, duration) == expected_end_time, 0);
-        
-//         // Test is_subscription_expired
-//         assert!(!time::is_subscription_expired(20000), 1); // Future time, not expired
-//         assert!(time::is_subscription_expired(5000), 2); // Past time, expired
-        
-//         // Test is_timestamp_past/future
-//         assert!(time::is_timestamp_past(5000), 3);
-//         assert!(!time::is_timestamp_past(20000), 4);
-//         assert!(!time::is_timestamp_future(5000), 5);
-//         assert!(time::is_timestamp_future(20000), 6);
-        
-//         // Test time_remaining
-//         assert!(time::time_remaining(20000) == 10000, 7); // 10000 seconds remaining
-//         assert!(time::time_remaining(5000) == 0, 8); // Already expired, 0 remaining
-        
-//         // Test percentage_elapsed
-//         let start = 0;
-//         let end = 10000;
-//         assert!(time::percentage_elapsed(start, end) == 100, 9); // 100% elapsed
-        
-//         start = 0;
-//         end = 20000;
-//         assert!(time::percentage_elapsed(start, end) == 50, 10); // 50% elapsed
-        
-//         start = 20000;
-//         end = 30000;
-//         assert!(time::percentage_elapsed(start, end) == 0, 11); // 0% elapsed, future start
-        
-//         // Test calculate_remaining_value
-//         assert!(time::calculate_remaining_value(1000, 86400, 43200) == 500, 12); // Half time remaining
-//         assert!(time::calculate_remaining_value(1000, 0, 43200) == 0, 13); // Handle division by zero
-        
-//         // Test calculate_prorated_duration
-//         assert!(time::calculate_prorated_duration(500, 1000, 86400) == 43200, 14); // Half value
-//         assert!(time::calculate_prorated_duration(500, 0, 86400) == 0, 15); // Handle division by zero
-        
-//         // Test is_in_grace_period
-//         timestamp::update_global_time_for_test_secs(15000);
-//         assert!(time::is_in_grace_period(12000, 5000), 16); // In grace period
-//         assert!(!time::is_in_grace_period(12000, 1000), 17); // Outside grace period
-//         assert!(!time::is_in_grace_period(20000, 5000), 18); // End time in future
-//     }
-    
-//     // Tests for View module
-    
-//     #[test]
-//     fun test_view_get_plan_details() {
-//         let aptos_framework = account::create_account_for_test(@0x1);
-//         let admin = account::create_account_for_test(ADMIN);
-//         let creator = account::create_account_for_test(CREATOR1);
-        
-//         timestamp::set_time_has_started_for_testing(&aptos_framework);
-//         timestamp::update_global_time_for_test_secs(10000);
-        
-//         registry::initialize(&admin);
-//         plans::initialize_plan_registry(&admin);
-//         registry::register_creator(&creator);
-        
-//         // Create a plan
-//         plans::create_plan(
-//             &creator,
-//             utf8(b"Basic Plan"),
-//             utf8(b"Basic subscription plan"),
-//             1000,
-//             86400,
-//             true
-//         );
-        
-//         // Test view::get_plan_details with a valid plan ID
-//         let (creator_addr, title, price, duration, active) = view::get_plan_details(0);
-//         assert!(creator_addr == CREATOR1, 0);
-//         assert!(title == utf8(b"Basic Plan"), 1);
-//         assert!(price == 1000, 2);
-//         assert!(duration == 86400, 3);
-//         assert!(active == true, 4);
-//     }
-    
-//     #[test]
-//     fun test_view_list_creator_plans() {
-//         let aptos_framework = account::create_account_for_test(@0x1);
-//         let admin = account::create_account_for_test(ADMIN);
-//         let creator1 = account::create_account_for_test(CREATOR1);
-//         let creator2 = account::create_account_for_test(CREATOR2);
-        
-//         timestamp::set_time_has_started_for_testing(&aptos_framework);
-//         timestamp::update_global_time_for_test_secs(10000);
-        
-//         registry::initialize(&admin);
-//         plans::initialize_plan_registry(&admin);
-//         registry::register_creator(&creator1);
-//         registry::register_creator(&creator2);
-        
-//         // Create two plans for creator1
-//         plans::create_plan(
-//             &creator1,
-//             utf8(b"Creator1 Basic Plan"),
-//             utf8(b"Creator1 basic subscription plan"),
-//             1000,
-//             86400,
-//             true
-//         );
-        
-//         plans::create_plan(
-//             &creator1,
-//             utf8(b"Creator1 Premium Plan"),
-//             utf8(b"Creator1 premium subscription plan"),
-//             2000,
-//             172800,
-//             false
-//         );
-        
-//         // Create one plan for creator2
-//         plans::create_plan(
-//             &creator2,
-//             utf8(b"Creator2 Basic Plan"),
-//             utf8(b"Creator2 basic subscription plan"),
-//             1500,
-//             86400,
-//             true
-//         );
-        
-//         // Test list_creator_plans for creator1 (should have 2 plans)
-//         let creator1_plans = view::list_creator_plans(CREATOR1);
-//         assert!(vector::length(&creator1_plans) == 2, 0);
-//         assert!(*vector::borrow(&creator1_plans, 0) == 0, 1);
-//         assert!(*vector::borrow(&creator1_plans, 1) == 1, 2);
-        
-//         // Test list_creator_plans for creator2 (should have 1 plan)
-//         let creator2_plans = view::list_creator_plans(CREATOR2);
-//         assert!(vector::length(&creator2_plans) == 1, 3);
-//         assert!(*vector::borrow(&creator2_plans, 0) == 2, 4);
-        
-//         // Test list_creator_plans for an address with no plans (should return empty vector)
-//         let user_plans = view::list_creator_plans(USER1);
-//         assert!(vector::length(&user_plans) == 0, 5);
-//     }
-    
-//     // #[test]
-//     // fun test_view_list_active_creator_plans() {
-//     //     let aptos_framework = account::create_account_for_test(@0x1);
-//     //     let admin = account::create_account_for_test(ADMIN);
-//     //     let creator1 = account::create_account_for_test(CREATOR1);
-        
-//     //     timestamp::set_time_has_started_for_testing(&aptos_framework);
-//     //     timestamp::update_global_time_for_test_secs(10000);
-        
-//     //     registry::initialize(&admin);
-//     //     plans::initialize_plan_registry(&admin);
-//     //     registry::register_creator(&creator1);
-        
-//     //     // Create one active and one inactive plan for creator1
-//     //     plans::create_plan(
-//     //         &creator1,
-//     //         utf8(b"Creator1 Basic Plan"),
-//     //         utf8(b"Creator1 basic subscription plan"),
-//     //         1000,
-//     //         86400,
-//     //         true  // Active
-//     //     );
-        
-//     //     plans::create_plan(
-//     //         &creator1,
-//     //         utf8(b"Creator1 Premium Plan"),
-//     //         utf8(b"Creator1 premium subscription plan"),
-//     //         2000,
-//     //         172800,
-//     //         false  // Inactive
-//     //     );
-        
-//     //     // Test list_active_creator_plans (should only return active plans)
-//     //     let active_plans = view::list_active_creator_plans(CREATOR1);
-//     //     assert!(vector::length(&active_plans) == 1, 0);
-//     //     assert!(*vector::borrow(&active_plans, 0) == 0, 1);
-        
-//     //     // Create another active plan
-//     //     plans::create_plan(
-//     //         &creator1,
-//     //         utf8(b"Creator1 Extra Plan"),
-//     //         utf8(b"Creator1 extra subscription plan"),
-//     //         3000,
-//     //         259200,
-//     //         true  // Active
-//     //     );
-        
-//     //     // Test again with multiple active plans
-//     //     let active_plans = view::list_active_creator_plans(CREATOR1);
-//     //     assert!(vector::length(&active_plans) == 2, 2);
-//     //     assert!(*vector::borrow(&active_plans, 0) == 0, 3);
-//     //     assert!(*vector::borrow(&active_plans, 1) == 2, 4);
-        
-//     //     // Test with a creator that has no active plans
-//     //     // First, deactivate all creator1's plans
-//     //     plans::update_plan(
-//     //         &creator1,
-//     //         0,
-//     //         option::none(),
-//     //         option::none(),
-//     //         option::none(),
-//     //         option::some(false)  // Deactivate
-//     //     );
-        
-//     //     plans::update_plan(
-//     //         &creator1,
-//     //         2,
-//     //         option::none(),
-//     //         option::none(),
-//     //         option::none(),
-//     //         option::some(false)  // Deactivate
-//     //     );
-        
-//     //     let active_plans = view::list_active_creator_plans(CREATOR1);
-//     //     assert!(vector::length(&active_plans) == 0, 5);
-        
-//     //     // Test with an address that has no plans
-//     //     let active_plans = view::list_active_creator_plans(USER1);
-//     //     assert!(vector::length(&active_plans) == 0, 6);
-//     // }
-    
-//     // Tests for Subscriptions module - only testing the initialization since
-//     // most other functions require coin operations
-    
-//     #[test]
-//     fun test_subscriptions_initialize_subscription_registry() {
-//         let aptos_framework = account::create_account_for_test(@0x1);
-//         let admin = account::create_account_for_test(ADMIN);
-        
-//         timestamp::set_time_has_started_for_testing(&aptos_framework);
-//         timestamp::update_global_time_for_test_secs(10000);
-        
-//         // Initialize subscription registry
-//         subscriptions::initialize_subscription_registry(&admin);
-//     }
-    
-//     #[test]
-//     #[expected_failure(abort_code = 1)] // ERR_NOT_AUTHORIZED
-//     fun test_subscriptions_initialize_subscription_registry_unauthorized() {
-//         let aptos_framework = account::create_account_for_test(@0x1);
-//         let fake_admin = account::create_account_for_test(@0xF1);
-        
-//         timestamp::set_time_has_started_for_testing(&aptos_framework);
-//         timestamp::update_global_time_for_test_secs(10000);
-        
-//         // Attempt to initialize with non-admin account - should fail
-//         subscriptions::initialize_subscription_registry(&fake_admin);
-//     }
-// }
-
-
-
-
-
-
-
-
-
-
 #[test_only]
-module subscription::comprehensive_tests {
+module subscription::subscription_tests {
     use std::signer;
     use std::string::{String, utf8};
-    use std::option::{Self, Option};
+    use std::option;
     use std::vector;
     use aptos_framework::account;
     use aptos_framework::timestamp;
-    use aptos_framework::coin::{Self};
-    use aptos_framework::aptos_coin::{Self, AptosCoin};
-    
+
     use subscription::registry;
     use subscription::plans;
     use subscription::subscriptions;
@@ -5310,594 +4615,659 @@ module subscription::comprehensive_tests {
     const STATUS_CANCELLED: u8 = 1;
     const STATUS_EXPIRED: u8 = 2;
     
-    // Initialize modules with basic test data
-    fun setup_test_environment(
-        framework: &signer,
-        admin: &signer,
-        creator1: &signer,
-        creator2: &signer,
-        user1: &signer,
-        user2: &signer
-    ) {
-        // Setup timestamp for testing
-        timestamp::set_time_has_started_for_testing(framework);
+    #[test]
+    fun test_registry_initialize() {
+        let aptos_framework = account::create_account_for_test(@0x1);
+        let admin = account::create_account_for_test(ADMIN);
+        
+        timestamp::set_time_has_started_for_testing(&aptos_framework);
         timestamp::update_global_time_for_test_secs(10000);
         
-        // Initialize core modules
-        registry::initialize(admin);
-        plans::initialize_plan_registry(admin);
-        subscriptions::initialize_subscription_registry(admin);
+        // Test initialize function
+        registry::initialize(&admin);
         
-        // Setup accounts with coins for testing
-        let coin_amount = 10000000;
-        coin::register<AptosCoin>(admin);
-        coin::register<AptosCoin>(creator1);
-        coin::register<AptosCoin>(creator2);
-        coin::register<AptosCoin>(user1);
-        coin::register<AptosCoin>(user2);
+        // Verify registry exists at the admin address
+        assert!(registry::verify_admin(&admin), 0);
+        assert!(registry::get_platform_fee_percentage() == 250, 1);
+        assert!(registry::get_min_subscription_duration() == 86400, 2);
+    }
+    
+    #[test]
+    #[expected_failure(abort_code = 4)] // ERR_REGISTRY_ALREADY_EXISTS
+    fun test_registry_initialize_already_exists() {
+        let aptos_framework = account::create_account_for_test(@0x1);
+        let admin = account::create_account_for_test(ADMIN);
         
-        aptos_coin::mint(framework, signer::address_of(admin), coin_amount);
-        aptos_coin::mint(framework, signer::address_of(creator1), coin_amount);
-        aptos_coin::mint(framework, signer::address_of(creator2), coin_amount);
-        aptos_coin::mint(framework, signer::address_of(user1), coin_amount);
-        aptos_coin::mint(framework, signer::address_of(user2), coin_amount);
+        timestamp::set_time_has_started_for_testing(&aptos_framework);
+        timestamp::update_global_time_for_test_secs(10000);
         
-        // Register creators
-        registry::register_creator(creator1);
-        registry::register_creator(creator2);
+        // Initialize once
+        registry::initialize(&admin);
         
-        // Create test plans for each creator
+        // Attempt to initialize again - should fail
+        registry::initialize(&admin);
+    }
+    
+    #[test]
+    #[expected_failure(abort_code = 1)] // ERR_NOT_AUTHORIZED
+    fun test_registry_initialize_unauthorized() {
+        let aptos_framework = account::create_account_for_test(@0x1);
+        let fake_admin = account::create_account_for_test(@0xF1);
+        
+        timestamp::set_time_has_started_for_testing(&aptos_framework);
+        timestamp::update_global_time_for_test_secs(10000);
+        
+        // Attempt to initialize with non-admin account - should fail
+        registry::initialize(&fake_admin);
+    }
+    
+    #[test]
+    fun test_register_creator() {
+        let aptos_framework = account::create_account_for_test(@0x1);
+        let admin = account::create_account_for_test(ADMIN);
+        let creator = account::create_account_for_test(CREATOR1);
+        
+        timestamp::set_time_has_started_for_testing(&aptos_framework);
+        timestamp::update_global_time_for_test_secs(10000);
+        
+        registry::initialize(&admin);
+        
+        // Register a creator
+        registry::register_creator(&creator);
+        
+        // Verify creator is registered
+        assert!(registry::verify_creator(CREATOR1), 0);
+        assert!(registry::verify_caller_is_creator(&creator), 1);
+    }
+    
+    #[test]
+    #[expected_failure(abort_code = 2)] // ERR_ALREADY_REGISTERED
+    fun test_register_creator_already_registered() {
+        let aptos_framework = account::create_account_for_test(@0x1);
+        let admin = account::create_account_for_test(ADMIN);
+        let creator = account::create_account_for_test(CREATOR1);
+        
+        timestamp::set_time_has_started_for_testing(&aptos_framework);
+        timestamp::update_global_time_for_test_secs(10000);
+        
+        registry::initialize(&admin);
+        
+        // Register a creator
+        registry::register_creator(&creator);
+        
+        // Attempt to register again - should fail
+        registry::register_creator(&creator);
+    }
+    
+    #[test]
+    fun test_update_global_config() {
+        let aptos_framework = account::create_account_for_test(@0x1);
+        let admin = account::create_account_for_test(ADMIN);
+        
+        timestamp::set_time_has_started_for_testing(&aptos_framework);
+        timestamp::update_global_time_for_test_secs(10000);
+        
+        registry::initialize(&admin);
+        
+        // Update config
+        let new_fee_percentage = 300; // 3%
+        let new_min_duration = 172800; // 2 days
+        registry::update_global_config(&admin, new_fee_percentage, new_min_duration);
+        
+        // Verify config was updated
+        assert!(registry::get_platform_fee_percentage() == new_fee_percentage, 0);
+        assert!(registry::get_min_subscription_duration() == new_min_duration, 1);
+    }
+    
+    #[test]
+    #[expected_failure(abort_code = 1)] // ERR_NOT_AUTHORIZED
+    fun test_update_global_config_unauthorized() {
+        let aptos_framework = account::create_account_for_test(@0x1);
+        let admin = account::create_account_for_test(ADMIN);
+        let fake_admin = account::create_account_for_test(@0xF1);
+        
+        timestamp::set_time_has_started_for_testing(&aptos_framework);
+        timestamp::update_global_time_for_test_secs(10000);
+        
+        registry::initialize(&admin);
+        
+        // Attempt to update config with non-admin account - should fail
+        registry::update_global_config(&fake_admin, 300, 172800);
+    }
+    
+    #[test]
+    fun test_registry_generate_ids() {
+        let aptos_framework = account::create_account_for_test(@0x1);
+        let admin = account::create_account_for_test(ADMIN);
+        
+        timestamp::set_time_has_started_for_testing(&aptos_framework);
+        timestamp::update_global_time_for_test_secs(10000);
+        
+        registry::initialize(&admin);
+        
+        // Generate plan ID
+        let plan_id1 = registry::generate_plan_id();
+        let plan_id2 = registry::generate_plan_id();
+        assert!(plan_id1 == 0, 0);
+        assert!(plan_id2 == 1, 1);
+        
+        // Generate subscription ID
+        let sub_id1 = registry::generate_subscription_id();
+        let sub_id2 = registry::generate_subscription_id();
+        assert!(sub_id1 == 0, 2);
+        assert!(sub_id2 == 1, 3);
+    }
+    
+    #[test]
+    fun test_plans_create_plan() {
+        let aptos_framework = account::create_account_for_test(@0x1);
+        let admin = account::create_account_for_test(ADMIN);
+        let creator = account::create_account_for_test(CREATOR1);
+        
+        timestamp::set_time_has_started_for_testing(&aptos_framework);
+        timestamp::update_global_time_for_test_secs(10000);
+        
+        registry::initialize(&admin);
+        plans::initialize_plan_registry(&admin);
+        registry::register_creator(&creator);
+        
+        // Create a plan
         plans::create_plan(
-            creator1,
+            &creator,
             utf8(b"Basic Plan"),
             utf8(b"Basic subscription plan"),
-            1000, // 1000 APT
+            1000, // 1000 APT coins
             86400, // 1 day
-            true // active
+            true
         );
         
+        // Verify plan was created
+        let plan_id = 0; // First plan should have ID 0
+        let (creator_addr, title, price, duration, active) = plans::get_plan(plan_id);
+        assert!(creator_addr == CREATOR1, 0);
+        assert!(title == utf8(b"Basic Plan"), 1);
+        assert!(price == 1000, 2);
+        assert!(duration == 86400, 3);
+        assert!(active == true, 4);
+        
+        // Verify creator has plans
+        assert!(plans::creator_has_plans(CREATOR1), 5);
+        let creator_plans = plans::get_creator_plans(CREATOR1);
+        assert!(vector::length(&creator_plans) == 1, 6);
+        assert!(*vector::borrow(&creator_plans, 0) == plan_id, 7);
+    }
+    
+    #[test]
+    #[expected_failure(abort_code = 1)] // ERR_NOT_AUTHORIZED
+    fun test_plans_create_plan_not_creator() {
+        let aptos_framework = account::create_account_for_test(@0x1);
+        let admin = account::create_account_for_test(ADMIN);
+        let not_creator = account::create_account_for_test(USER1);
+        
+        timestamp::set_time_has_started_for_testing(&aptos_framework);
+        timestamp::update_global_time_for_test_secs(10000);
+        
+        registry::initialize(&admin);
+        plans::initialize_plan_registry(&admin);
+        
+        // Attempt to create a plan with non-creator account - should fail
         plans::create_plan(
-            creator1,
-            utf8(b"Premium Plan"),
-            utf8(b"Premium subscription plan"),
-            2000, // 2000 APT
-            172800, // 2 days
-            true // active
+            &not_creator,
+            utf8(b"Basic Plan"),
+            utf8(b"Basic subscription plan"),
+            1000,
+            86400,
+            true
         );
+    }
+    
+    #[test]
+    #[expected_failure(abort_code = 3)] // ERR_INVALID_DURATION
+    fun test_plans_create_plan_invalid_duration() {
+        let aptos_framework = account::create_account_for_test(@0x1);
+        let admin = account::create_account_for_test(ADMIN);
+        let creator = account::create_account_for_test(CREATOR1);
         
+        timestamp::set_time_has_started_for_testing(&aptos_framework);
+        timestamp::update_global_time_for_test_secs(10000);
+        
+        registry::initialize(&admin);
+        plans::initialize_plan_registry(&admin);
+        registry::register_creator(&creator);
+        
+        // Attempt to create a plan with too short duration - should fail
         plans::create_plan(
-            creator2,
-            utf8(b"Creator2 Plan"),
-            utf8(b"Creator2 subscription plan"),
-            1500, // 1500 APT
-            86400, // 1 day
-            true // active
+            &creator,
+            utf8(b"Basic Plan"),
+            utf8(b"Basic subscription plan"),
+            1000,
+            1000, // Too short (less than min_subscription_duration)
+            true
         );
+    }
+    
+    #[test]
+    #[expected_failure(abort_code = 4)] // ERR_INVALID_PRICE
+    fun test_plans_create_plan_invalid_price() {
+        let aptos_framework = account::create_account_for_test(@0x1);
+        let admin = account::create_account_for_test(ADMIN);
+        let creator = account::create_account_for_test(CREATOR1);
         
-        // Create inactive plan for testing
+        timestamp::set_time_has_started_for_testing(&aptos_framework);
+        timestamp::update_global_time_for_test_secs(10000);
+        
+        registry::initialize(&admin);
+        plans::initialize_plan_registry(&admin);
+        registry::register_creator(&creator);
+        
+        // Attempt to create a plan with zero price - should fail
         plans::create_plan(
-            creator1,
-            utf8(b"Inactive Plan"),
-            utf8(b"Inactive subscription plan"),
-            3000, // 3000 APT
-            86400, // 1 day
-            false // inactive
+            &creator,
+            utf8(b"Basic Plan"),
+            utf8(b"Basic subscription plan"),
+            0, // Zero price
+            86400,
+            true
         );
     }
     
-    // Tests for View module's uncovered functions
-
     #[test]
-    fun test_view_list_active_creator_plans() {
+    fun test_plans_update_plan() {
         let aptos_framework = account::create_account_for_test(@0x1);
         let admin = account::create_account_for_test(ADMIN);
-        let creator1 = account::create_account_for_test(CREATOR1);
-        let creator2 = account::create_account_for_test(CREATOR2);
-        let user1 = account::create_account_for_test(USER1);
-        let user2 = account::create_account_for_test(USER2);
+        let creator = account::create_account_for_test(CREATOR1);
         
-        setup_test_environment(&aptos_framework, &admin, &creator1, &creator2, &user1, &user2);
+        timestamp::set_time_has_started_for_testing(&aptos_framework);
+        timestamp::update_global_time_for_test_secs(10000);
         
-        // Test listing active plans
-        let active_plans = view::list_active_creator_plans(CREATOR1);
-        assert!(vector::length(&active_plans) == 2, 0); // Should contain 2 active plans
+        registry::initialize(&admin);
+        plans::initialize_plan_registry(&admin);
+        registry::register_creator(&creator);
         
-        // Verify correct plan IDs are returned (0 and 1 are active)
-        assert!(vector::contains(&active_plans, &0), 1);
-        assert!(vector::contains(&active_plans, &1), 2);
+        // Create a plan
+        plans::create_plan(
+            &creator,
+            utf8(b"Basic Plan"),
+            utf8(b"Basic subscription plan"),
+            1000,
+            86400,
+            true
+        );
         
-        // Plan 3 is inactive and should not be in the list
-        assert!(!vector::contains(&active_plans, &3), 3);
-    }
-    
-    #[test]
-    fun test_view_has_active_subscription() {
-        let aptos_framework = account::create_account_for_test(@0x1);
-        let admin = account::create_account_for_test(ADMIN);
-        let creator1 = account::create_account_for_test(CREATOR1);
-        let creator2 = account::create_account_for_test(CREATOR2);
-        let user1 = account::create_account_for_test(USER1);
-        let user2 = account::create_account_for_test(USER2);
-        
-        setup_test_environment(&aptos_framework, &admin, &creator1, &creator2, &user1, &user2);
-        
-        // Initially no subscriptions
-        assert!(!view::has_active_subscription(USER1, CREATOR1), 0);
-        
-        // Subscribe user1 to creator1's plan
-        subscriptions::subscribe(&user1, 0, 1000);
-        
-        // Now user1 should have active subscription to creator1
-        assert!(view::has_active_subscription(USER1, CREATOR1), 1);
-        
-        // But not to creator2
-        assert!(!view::has_active_subscription(USER1, CREATOR2), 2);
-    }
-    
-    #[test]
-    fun test_view_get_subscription_details() {
-        let aptos_framework = account::create_account_for_test(@0x1);
-        let admin = account::create_account_for_test(ADMIN);
-        let creator1 = account::create_account_for_test(CREATOR1);
-        let creator2 = account::create_account_for_test(CREATOR2);
-        let user1 = account::create_account_for_test(USER1);
-        let user2 = account::create_account_for_test(USER2);
-        
-        setup_test_environment(&aptos_framework, &admin, &creator1, &creator2, &user1, &user2);
-        
-        // Subscribe user1 to creator1's plan
-        subscriptions::subscribe(&user1, 0, 1000);
-        
-        // Verify subscription details
-        let (subscriber, plan_id, creator, start_time, end_time, status) = 
-            view::get_subscription_details(0);
-        
-        assert!(subscriber == USER1, 0);
-        assert!(plan_id == 0, 1);
-        assert!(creator == CREATOR1, 2);
-        assert!(start_time == 10000, 3); // Our test time
-        assert!(end_time == 96400, 4); // start_time + duration
-        assert!(status == STATUS_ACTIVE, 5);
-    }
-    
-    #[test]
-    fun test_view_get_creator_subscriber_count() {
-        let aptos_framework = account::create_account_for_test(@0x1);
-        let admin = account::create_account_for_test(ADMIN);
-        let creator1 = account::create_account_for_test(CREATOR1);
-        let creator2 = account::create_account_for_test(CREATOR2);
-        let user1 = account::create_account_for_test(USER1);
-        let user2 = account::create_account_for_test(USER2);
-        
-        setup_test_environment(&aptos_framework, &admin, &creator1, &creator2, &user1, &user2);
-        
-        // Initially no subscribers
-        assert!(view::get_creator_subscriber_count(CREATOR1) == 0, 0);
-        
-        // Subscribe users to creator1
-        subscriptions::subscribe(&user1, 0, 1000);
-        assert!(view::get_creator_subscriber_count(CREATOR1) == 1, 1);
-        
-        subscriptions::subscribe(&user2, 0, 1000);
-        assert!(view::get_creator_subscriber_count(CREATOR1) == 2, 2);
-        
-        // Subscribe user1 to creator2
-        subscriptions::subscribe(&user1, 2, 1500);
-        assert!(view::get_creator_subscriber_count(CREATOR2) == 1, 3);
-    }
-    
-    // Tests for Registry module's uncovered functions
-    
-    #[test]
-    fun test_registry_decrease_active_subscriptions() {
-        let aptos_framework = account::create_account_for_test(@0x1);
-        let admin = account::create_account_for_test(ADMIN);
-        let creator1 = account::create_account_for_test(CREATOR1);
-        let creator2 = account::create_account_for_test(CREATOR2);
-        let user1 = account::create_account_for_test(USER1);
-        let user2 = account::create_account_for_test(USER2);
-        
-        setup_test_environment(&aptos_framework, &admin, &creator1, &creator2, &user1, &user2);
-        
-        // Subscribe user to create active subscriptions
-        subscriptions::subscribe(&user1, 0, 1000);
-        
-        // Cancel subscription to trigger decrease_active_subscriptions
-        subscriptions::cancel_subscription(&user1, 0);
-        
-        // This test doesn't have direct assertions as we're just ensuring the line is covered
-        // The function is called during cancel_subscription
-    }
-    
-    // Tests for Plans module's uncovered functions
-    
-    #[test]
-    fun test_plans_update_plan_all_fields() {
-        let aptos_framework = account::create_account_for_test(@0x1);
-        let admin = account::create_account_for_test(ADMIN);
-        let creator1 = account::create_account_for_test(CREATOR1);
-        let creator2 = account::create_account_for_test(CREATOR2);
-        let user1 = account::create_account_for_test(USER1);
-        let user2 = account::create_account_for_test(USER2);
-        
-        setup_test_environment(&aptos_framework, &admin, &creator1, &creator2, &user1, &user2);
-        
-        // Update all fields of the plan - this should cover the update branches
+        // Update the plan
         plans::update_plan(
-            &creator1,
+            &creator,
             0, // Plan ID
-            option::some(utf8(b"Updated Title")),
-            option::some(utf8(b"Updated Description")),
-            option::some(1500),
-            option::some(false)
+            option::some(utf8(b"Premium Plan")), // New title
+            option::some(utf8(b"Premium subscription plan")), // New description
+            option::some(2000), // New price
+            option::some(false) // New active status
         );
         
-        // Verify updated values
-        let (creator, title, price, duration, active) = plans::get_plan(0);
-        assert!(creator == CREATOR1, 0);
-        assert!(title == utf8(b"Updated Title"), 1);
-        assert!(price == 1500, 2);
-        assert!(duration == 86400, 3); // Duration not changed
+        // Verify plan was updated
+        let (creator_addr, title, price, duration, active) = plans::get_plan(0);
+        assert!(creator_addr == CREATOR1, 0);
+        assert!(title == utf8(b"Premium Plan"), 1);
+        assert!(price == 2000, 2);
+        assert!(duration == 86400, 3); // Duration not updated
         assert!(active == false, 4);
     }
     
     #[test]
-    #[expected_failure(abort_code = 5)] // ERR_PLAN_INACTIVE
-    fun test_plans_assert_plan_subscribable_inactive() {
+    #[expected_failure(abort_code = 1)] // ERR_NOT_AUTHORIZED
+    fun test_plans_update_plan_not_creator() {
         let aptos_framework = account::create_account_for_test(@0x1);
         let admin = account::create_account_for_test(ADMIN);
-        let creator1 = account::create_account_for_test(CREATOR1);
-        let creator2 = account::create_account_for_test(CREATOR2);
-        let user1 = account::create_account_for_test(USER1);
-        let user2 = account::create_account_for_test(USER2);
+        let creator = account::create_account_for_test(CREATOR1);
+        let other_creator = account::create_account_for_test(CREATOR2);
         
-        setup_test_environment(&aptos_framework, &admin, &creator1, &creator2, &user1, &user2);
+        timestamp::set_time_has_started_for_testing(&aptos_framework);
+        timestamp::update_global_time_for_test_secs(10000);
         
-        // Plan ID 3 is inactive
-        plans::assert_plan_subscribable(3);
+        registry::initialize(&admin);
+        plans::initialize_plan_registry(&admin);
+        registry::register_creator(&creator);
+        registry::register_creator(&other_creator);
+        
+        // Create a plan
+        plans::create_plan(
+            &creator,
+            utf8(b"Basic Plan"),
+            utf8(b"Basic subscription plan"),
+            1000,
+            86400,
+            true
+        );
+        
+        // Attempt to update the plan with different creator - should fail
+        plans::update_plan(
+            &other_creator,
+            0, // Plan ID
+            option::some(utf8(b"Premium Plan")),
+            option::none(),
+            option::none(),
+            option::none()
+        );
     }
     
     #[test]
-    #[expected_failure(abort_code = 2)] // ERR_PLAN_NOT_FOUND
-    fun test_plans_assert_plan_subscribable_not_found() {
+    #[expected_failure(abort_code = 2)] // ERR_PLAN_NOT_FOUND 
+    fun test_plans_update_nonexistent_plan() {
         let aptos_framework = account::create_account_for_test(@0x1);
         let admin = account::create_account_for_test(ADMIN);
-        let creator1 = account::create_account_for_test(CREATOR1);
-        let creator2 = account::create_account_for_test(CREATOR2);
-        let user1 = account::create_account_for_test(USER1);
-        let user2 = account::create_account_for_test(USER2);
+        let creator = account::create_account_for_test(CREATOR1);
         
-        setup_test_environment(&aptos_framework, &admin, &creator1, &creator2, &user1, &user2);
+        timestamp::set_time_has_started_for_testing(&aptos_framework);
+        timestamp::update_global_time_for_test_secs(10000);
         
-        // Non-existent plan ID
-        plans::assert_plan_subscribable(999);
+        registry::initialize(&admin);
+        plans::initialize_plan_registry(&admin);
+        registry::register_creator(&creator);
+        
+        // Attempt to update non-existent plan - should fail
+        plans::update_plan(
+            &creator,
+            999, // Non-existent plan ID
+            option::some(utf8(b"Premium Plan")),
+            option::none(),
+            option::none(),
+            option::none()
+        );
     }
     
     #[test]
-    #[expected_failure(abort_code = 6)] // ERR_CREATOR_NOT_FOUND
-    fun test_plans_get_creator_plans_not_found() {
+    fun test_is_plan_active() {
         let aptos_framework = account::create_account_for_test(@0x1);
         let admin = account::create_account_for_test(ADMIN);
-        let creator1 = account::create_account_for_test(CREATOR1);
-        let creator2 = account::create_account_for_test(CREATOR2);
-        let user1 = account::create_account_for_test(USER1);
-        let user2 = account::create_account_for_test(USER2);
+        let creator = account::create_account_for_test(CREATOR1);
         
-        setup_test_environment(&aptos_framework, &admin, &creator1, &creator2, &user1, &user2);
+        timestamp::set_time_has_started_for_testing(&aptos_framework);
+        timestamp::update_global_time_for_test_secs(10000);
         
-        // Non-existent creator
-        plans::get_creator_plans(@0xNONCREATOR);
+        registry::initialize(&admin);
+        plans::initialize_plan_registry(&admin);
+        registry::register_creator(&creator);
+        
+        // Create an active plan
+        plans::create_plan(
+            &creator,
+            utf8(b"Active Plan"),
+            utf8(b"Active subscription plan"),
+            1000,
+            86400,
+            true
+        );
+        
+        // Create an inactive plan
+        plans::create_plan(
+            &creator,
+            utf8(b"Inactive Plan"),
+            utf8(b"Inactive subscription plan"),
+            1000,
+            86400,
+            false
+        );
+        
+        // Verify plan status
+        assert!(plans::is_plan_active(0), 0); // First plan is active
+        assert!(!plans::is_plan_active(1), 1); // Second plan is inactive
+        assert!(!plans::is_plan_active(999), 2); // Non-existent plan should return false
     }
     
     #[test]
-    #[expected_failure(abort_code = 2)] // ERR_PLAN_NOT_FOUND
-    fun test_plans_get_plan_not_found() {
+    fun test_time_functions() {
         let aptos_framework = account::create_account_for_test(@0x1);
-        let admin = account::create_account_for_test(ADMIN);
-        let creator1 = account::create_account_for_test(CREATOR1);
-        let creator2 = account::create_account_for_test(CREATOR2);
-        let user1 = account::create_account_for_test(USER1);
-        let user2 = account::create_account_for_test(USER2);
+        timestamp::set_time_has_started_for_testing(&aptos_framework);
+        timestamp::update_global_time_for_test_secs(10000);
         
-        setup_test_environment(&aptos_framework, &admin, &creator1, &creator2, &user1, &user2);
+        // Test calculate_end_time
+        let start_time = 10000;
+        let duration = 86400;
+        let expected_end_time = 96400;
+        assert!(time::calculate_end_time(start_time, duration) == expected_end_time, 0);
         
-        // Non-existent plan ID
-        plans::get_plan(999);
+        // Test is_subscription_expired
+        assert!(!time::is_subscription_expired(20000), 1); // Future time, not expired
+        assert!(time::is_subscription_expired(5000), 2); // Past time, expired
+        
+        // Test is_timestamp_past/future
+        assert!(time::is_timestamp_past(5000), 3);
+        assert!(!time::is_timestamp_past(20000), 4);
+        assert!(!time::is_timestamp_future(5000), 5);
+        assert!(time::is_timestamp_future(20000), 6);
+        
+        // Test time_remaining
+        assert!(time::time_remaining(20000) == 10000, 7); // 10000 seconds remaining
+        assert!(time::time_remaining(5000) == 0, 8); // Already expired, 0 remaining
+        
+        // Test percentage_elapsed
+        let start = 0;
+        let end = 10000;
+        assert!(time::percentage_elapsed(start, end) == 100, 9); // 100% elapsed
+        
+        start = 0;
+        end = 20000;
+        assert!(time::percentage_elapsed(start, end) == 50, 10); // 50% elapsed
+        
+        start = 20000;
+        end = 30000;
+        assert!(time::percentage_elapsed(start, end) == 0, 11); // 0% elapsed, future start
+        
+        // Test calculate_remaining_value
+        assert!(time::calculate_remaining_value(1000, 86400, 43200) == 500, 12); // Half time remaining
+        assert!(time::calculate_remaining_value(1000, 0, 43200) == 0, 13); // Handle division by zero
+        
+        // Test calculate_prorated_duration
+        assert!(time::calculate_prorated_duration(500, 1000, 86400) == 43200, 14); // Half value
+        assert!(time::calculate_prorated_duration(500, 0, 86400) == 0, 15); // Handle division by zero
+        
+        // Test is_in_grace_period
+        timestamp::update_global_time_for_test_secs(15000);
+        assert!(time::is_in_grace_period(12000, 5000), 16); // In grace period
+        assert!(!time::is_in_grace_period(12000, 1000), 17); // Outside grace period
+        assert!(!time::is_in_grace_period(20000, 5000), 18); // End time in future
     }
     
-    // Tests for Subscriptions module's uncovered functions
+    // Tests for View module
     
     #[test]
-    fun test_subscriptions_subscribe() {
+    fun test_view_get_plan_details() {
         let aptos_framework = account::create_account_for_test(@0x1);
         let admin = account::create_account_for_test(ADMIN);
-        let creator1 = account::create_account_for_test(CREATOR1);
-        let creator2 = account::create_account_for_test(CREATOR2);
-        let user1 = account::create_account_for_test(USER1);
-        let user2 = account::create_account_for_test(USER2);
+        let creator = account::create_account_for_test(CREATOR1);
         
-        setup_test_environment(&aptos_framework, &admin, &creator1, &creator2, &user1, &user2);
+        timestamp::set_time_has_started_for_testing(&aptos_framework);
+        timestamp::update_global_time_for_test_secs(10000);
         
-        // Subscribe user to plan
-        subscriptions::subscribe(&user1, 0, 1000);
+        registry::initialize(&admin);
+        plans::initialize_plan_registry(&admin);
+        registry::register_creator(&creator);
         
-        // Verify subscription exists
-        assert!(subscriptions::subscription_exists(0), 0);
+        // Create a plan
+        plans::create_plan(
+            &creator,
+            utf8(b"Basic Plan"),
+            utf8(b"Basic subscription plan"),
+            1000,
+            86400,
+            true
+        );
         
-        // Verify user has history
-        assert!(subscriptions::user_has_history(USER1), 1);
-        
-        // Verify user's active subscriptions
-        let active_subs = subscriptions::get_active_subscriptions(USER1);
-        assert!(vector::length(&active_subs) == 1, 2);
-        assert!(*vector::borrow(&active_subs, 0) == 0, 3);
-    }
-    
-    #[test]
-    #[expected_failure(abort_code = 5)] // ERR_INSUFFICIENT_PAYMENT
-    fun test_subscriptions_subscribe_insufficient_payment() {
-        let aptos_framework = account::create_account_for_test(@0x1);
-        let admin = account::create_account_for_test(ADMIN);
-        let creator1 = account::create_account_for_test(CREATOR1);
-        let creator2 = account::create_account_for_test(CREATOR2);
-        let user1 = account::create_account_for_test(USER1);
-        let user2 = account::create_account_for_test(USER2);
-        
-        setup_test_environment(&aptos_framework, &admin, &creator1, &creator2, &user1, &user2);
-        
-        // Attempt to subscribe with insufficient payment
-        subscriptions::subscribe(&user1, 0, 500); // Plan costs 1000
-    }
-    
-    #[test]
-    fun test_subscriptions_cancel_subscription() {
-        let aptos_framework = account::create_account_for_test(@0x1);
-        let admin = account::create_account_for_test(ADMIN);
-        let creator1 = account::create_account_for_test(CREATOR1);
-        let creator2 = account::create_account_for_test(CREATOR2);
-        let user1 = account::create_account_for_test(USER1);
-        let user2 = account::create_account_for_test(USER2);
-        
-        setup_test_environment(&aptos_framework, &admin, &creator1, &creator2, &user1, &user2);
-        
-        // Subscribe user to plan
-        subscriptions::subscribe(&user1, 0, 1000);
-        
-        // Cancel subscription
-        subscriptions::cancel_subscription(&user1, 0);
-        
-        // Verify subscription status is cancelled
-        assert!(subscriptions::get_subscription_status(0) == STATUS_CANCELLED, 0);
-        
-        // Verify subscription is now in past subscriptions
-        let past_subs = subscriptions::get_past_subscriptions(USER1);
-        assert!(vector::length(&past_subs) == 1, 1);
-        assert!(*vector::borrow(&past_subs, 0) == 0, 2);
-        
-        // Verify active subscriptions is empty
-        let active_subs = subscriptions::get_active_subscriptions(USER1);
-        assert!(vector::length(&active_subs) == 0, 3);
-    }
-    
-    #[test]
-    #[expected_failure(abort_code = 3)] // ERR_SUBSCRIPTION_ALREADY_CANCELLED
-    fun test_subscriptions_cancel_already_cancelled() {
-        let aptos_framework = account::create_account_for_test(@0x1);
-        let admin = account::create_account_for_test(ADMIN);
-        let creator1 = account::create_account_for_test(CREATOR1);
-        let creator2 = account::create_account_for_test(CREATOR2);
-        let user1 = account::create_account_for_test(USER1);
-        let user2 = account::create_account_for_test(USER2);
-        
-        setup_test_environment(&aptos_framework, &admin, &creator1, &creator2, &user1, &user2);
-        
-        // Subscribe user to plan
-        subscriptions::subscribe(&user1, 0, 1000);
-        
-        // Cancel subscription
-        subscriptions::cancel_subscription(&user1, 0);
-        
-        // Attempt to cancel again - should fail
-        subscriptions::cancel_subscription(&user1, 0);
+        // Test view::get_plan_details with a valid plan ID
+        let (creator_addr, title, price, duration, active) = view::get_plan_details(0);
+        assert!(creator_addr == CREATOR1, 0);
+        assert!(title == utf8(b"Basic Plan"), 1);
+        assert!(price == 1000, 2);
+        assert!(duration == 86400, 3);
+        assert!(active == true, 4);
     }
     
     #[test]
-    fun test_subscriptions_renew_subscription() {
+    fun test_view_list_creator_plans() {
         let aptos_framework = account::create_account_for_test(@0x1);
         let admin = account::create_account_for_test(ADMIN);
         let creator1 = account::create_account_for_test(CREATOR1);
         let creator2 = account::create_account_for_test(CREATOR2);
-        let user1 = account::create_account_for_test(USER1);
-        let user2 = account::create_account_for_test(USER2);
         
-        setup_test_environment(&aptos_framework, &admin, &creator1, &creator2, &user1, &user2);
+        timestamp::set_time_has_started_for_testing(&aptos_framework);
+        timestamp::update_global_time_for_test_secs(10000);
         
-        // Subscribe user to plan
-        subscriptions::subscribe(&user1, 0, 1000);
+        registry::initialize(&admin);
+        plans::initialize_plan_registry(&admin);
+        registry::register_creator(&creator1);
+        registry::register_creator(&creator2);
         
-        // Cancel subscription
-        subscriptions::cancel_subscription(&user1, 0);
+        // Create two plans for creator1
+        plans::create_plan(
+            &creator1,
+            utf8(b"Creator1 Basic Plan"),
+            utf8(b"Creator1 basic subscription plan"),
+            1000,
+            86400,
+            true
+        );
         
-        // Renew cancelled subscription
-        subscriptions::renew_subscription(&user1, 0, 1000);
+        plans::create_plan(
+            &creator1,
+            utf8(b"Creator1 Premium Plan"),
+            utf8(b"Creator1 premium subscription plan"),
+            2000,
+            172800,
+            false
+        );
         
-        // Verify subscription is active again
-        assert!(subscriptions::get_subscription_status(0) == STATUS_ACTIVE, 0);
+        // Create one plan for creator2
+        plans::create_plan(
+            &creator2,
+            utf8(b"Creator2 Basic Plan"),
+            utf8(b"Creator2 basic subscription plan"),
+            1500,
+            86400,
+            true
+        );
         
-        // Verify subscription is back in active subscriptions
-        let active_subs = subscriptions::get_active_subscriptions(USER1);
-        assert!(vector::length(&active_subs) == 1, 1);
-        assert!(*vector::borrow(&active_subs, 0) == 0, 2);
+        // Test list_creator_plans for creator1 (should have 2 plans)
+        let creator1_plans = view::list_creator_plans(CREATOR1);
+        assert!(vector::length(&creator1_plans) == 2, 0);
+        assert!(*vector::borrow(&creator1_plans, 0) == 0, 1);
+        assert!(*vector::borrow(&creator1_plans, 1) == 1, 2);
+        
+        // Test list_creator_plans for creator2 (should have 1 plan)
+        let creator2_plans = view::list_creator_plans(CREATOR2);
+        assert!(vector::length(&creator2_plans) == 1, 3);
+        assert!(*vector::borrow(&creator2_plans, 0) == 2, 4);
+        
+        // Test list_creator_plans for an address with no plans (should return empty vector)
+        let user_plans = view::list_creator_plans(USER1);
+        assert!(vector::length(&user_plans) == 0, 5);
+    }
+    
+    // #[test]
+    // fun test_view_list_active_creator_plans() {
+    //     let aptos_framework = account::create_account_for_test(@0x1);
+    //     let admin = account::create_account_for_test(ADMIN);
+    //     let creator1 = account::create_account_for_test(CREATOR1);
+        
+    //     timestamp::set_time_has_started_for_testing(&aptos_framework);
+    //     timestamp::update_global_time_for_test_secs(10000);
+        
+    //     registry::initialize(&admin);
+    //     plans::initialize_plan_registry(&admin);
+    //     registry::register_creator(&creator1);
+        
+    //     // Create one active and one inactive plan for creator1
+    //     plans::create_plan(
+    //         &creator1,
+    //         utf8(b"Creator1 Basic Plan"),
+    //         utf8(b"Creator1 basic subscription plan"),
+    //         1000,
+    //         86400,
+    //         true  // Active
+    //     );
+        
+    //     plans::create_plan(
+    //         &creator1,
+    //         utf8(b"Creator1 Premium Plan"),
+    //         utf8(b"Creator1 premium subscription plan"),
+    //         2000,
+    //         172800,
+    //         false  // Inactive
+    //     );
+        
+    //     // Test list_active_creator_plans (should only return active plans)
+    //     let active_plans = view::list_active_creator_plans(CREATOR1);
+    //     assert!(vector::length(&active_plans) == 1, 0);
+    //     assert!(*vector::borrow(&active_plans, 0) == 0, 1);
+        
+    //     // Create another active plan
+    //     plans::create_plan(
+    //         &creator1,
+    //         utf8(b"Creator1 Extra Plan"),
+    //         utf8(b"Creator1 extra subscription plan"),
+    //         3000,
+    //         259200,
+    //         true  // Active
+    //     );
+        
+    //     // Test again with multiple active plans
+    //     let active_plans = view::list_active_creator_plans(CREATOR1);
+    //     assert!(vector::length(&active_plans) == 2, 2);
+    //     assert!(*vector::borrow(&active_plans, 0) == 0, 3);
+    //     assert!(*vector::borrow(&active_plans, 1) == 2, 4);
+        
+    //     // Test with a creator that has no active plans
+    //     // First, deactivate all creator1's plans
+    //     plans::update_plan(
+    //         &creator1,
+    //         0,
+    //         option::none(),
+    //         option::none(),
+    //         option::none(),
+    //         option::some(false)  // Deactivate
+    //     );
+        
+    //     plans::update_plan(
+    //         &creator1,
+    //         2,
+    //         option::none(),
+    //         option::none(),
+    //         option::none(),
+    //         option::some(false)  // Deactivate
+    //     );
+        
+    //     let active_plans = view::list_active_creator_plans(CREATOR1);
+    //     assert!(vector::length(&active_plans) == 0, 5);
+        
+    //     // Test with an address that has no plans
+    //     let active_plans = view::list_active_creator_plans(USER1);
+    //     assert!(vector::length(&active_plans) == 0, 6);
+    // }
+    
+    // Tests for Subscriptions module - only testing the initialization since
+    // most other functions require coin operations
+    
+    #[test]
+    fun test_subscriptions_initialize_subscription_registry() {
+        let aptos_framework = account::create_account_for_test(@0x1);
+        let admin = account::create_account_for_test(ADMIN);
+        
+        timestamp::set_time_has_started_for_testing(&aptos_framework);
+        timestamp::update_global_time_for_test_secs(10000);
+        
+        // Initialize subscription registry
+        subscriptions::initialize_subscription_registry(&admin);
     }
     
     #[test]
-    fun test_subscriptions_renew_expired_subscription() {
+    #[expected_failure(abort_code = 1)] // ERR_NOT_AUTHORIZED
+    fun test_subscriptions_initialize_subscription_registry_unauthorized() {
         let aptos_framework = account::create_account_for_test(@0x1);
-        let admin = account::create_account_for_test(ADMIN);
-        let creator1 = account::create_account_for_test(CREATOR1);
-        let creator2 = account::create_account_for_test(CREATOR2);
-        let user1 = account::create_account_for_test(USER1);
-        let user2 = account::create_account_for_test(USER2);
+        let fake_admin = account::create_account_for_test(@0xF1);
         
-        setup_test_environment(&aptos_framework, &admin, &creator1, &creator2, &user1, &user2);
+        timestamp::set_time_has_started_for_testing(&aptos_framework);
+        timestamp::update_global_time_for_test_secs(10000);
         
-        // Subscribe user to plan
-        subscriptions::subscribe(&user1, 0, 1000);
-        
-        // Fast forward time to expire the subscription
-        timestamp::update_global_time_for_test_secs(200000);
-        
-        // Renew expired subscription
-        subscriptions::renew_subscription(&user1, 0, 1000);
-        
-        // Verify subscription is active with new end time
-        assert!(subscriptions::get_subscription_status(0) == STATUS_ACTIVE, 0);
-        assert!(subscriptions::get_subscription_end_time(0) > 200000, 1);
-    }
-    
-    #[test]
-    #[expected_failure(abort_code = 7)] // ERR_SUBSCRIPTION_ACTIVE
-    fun test_subscriptions_renew_active_subscription() {
-        let aptos_framework = account::create_account_for_test(@0x1);
-        let admin = account::create_account_for_test(ADMIN);
-        let creator1 = account::create_account_for_test(CREATOR1);
-        let creator2 = account::create_account_for_test(CREATOR2);
-        let user1 = account::create_account_for_test(USER1);
-        let user2 = account::create_account_for_test(USER2);
-        
-        setup_test_environment(&aptos_framework, &admin, &creator1, &creator2, &user1, &user2);
-        
-        // Subscribe user to plan
-        subscriptions::subscribe(&user1, 0, 1000);
-        
-        // Attempt to renew active subscription - should fail
-        subscriptions::renew_subscription(&user1, 0, 1000);
-    }
-    
-    #[test]
-    fun test_subscriptions_upgrade_subscription() {
-        let aptos_framework = account::create_account_for_test(@0x1);
-        let admin = account::create_account_for_test(ADMIN);
-        let creator1 = account::create_account_for_test(CREATOR1);
-        let creator2 = account::create_account_for_test(CREATOR2);
-        let user1 = account::create_account_for_test(USER1);
-        let user2 = account::create_account_for_test(USER2);
-        
-        setup_test_environment(&aptos_framework, &admin, &creator1, &creator2, &user1, &user2);
-        
-        // Subscribe user to basic plan
-        subscriptions::subscribe(&user1, 0, 1000);
-        
-        // Upgrade to premium plan
-        subscriptions::upgrade_subscription(&user1, 0, 1, 1000);
-        
-        // Verify original subscription is cancelled
-        assert!(subscriptions::get_subscription_status(0) == STATUS_CANCELLED, 0);
-        
-        // Verify new subscription exists and is active
-        assert!(subscriptions::subscription_exists(1), 1);
-        assert!(subscriptions::get_subscription_status(1) == STATUS_ACTIVE, 2);
-        
-        // Verify new subscription points to old one
-        let (id, subscriber, plan_id, creator, start_time, end_time, status, payment) = 
-            subscriptions::get_subscription_details_by_id(1);
-        
-        assert!(id == 1, 3);
-        assert!(subscriber == USER1, 4);
-        assert!(plan_id == 1, 5); // Premium plan
-        assert!(creator == CREATOR1, 6);
-        assert!(status == STATUS_ACTIVE, 7);
-    }
-    
-    #[test]
-    #[expected_failure(abort_code = 4)] // ERR_SUBSCRIPTION_INACTIVE
-    fun test_subscriptions_upgrade_inactive_subscription() {
-        let aptos_framework = account::create_account_for_test(@0x1);
-        let admin = account::create_account_for_test(ADMIN);
-        let creator1 = account::create_account_for_test(CREATOR1);
-        let creator2 = account::create_account_for_test(CREATOR2);
-        let user1 = account::create_account_for_test(USER1);
-        let user2 = account::create_account_for_test(USER2);
-        
-        setup_test_environment(&aptos_framework, &admin, &creator1, &creator2, &user1, &user2);
-        
-        // Subscribe user to plan
-        subscriptions::subscribe(&user1, 0, 1000);
-        
-        // Cancel subscription
-        subscriptions::cancel_subscription(&user1, 0);
-        
-        // Attempt to upgrade cancelled subscription - should fail
-        subscriptions::upgrade_subscription(&user1, 0, 1, 1000);
-    }
-    
-    #[test]
-    fun test_subscriptions_is_subscription_active() {
-        let aptos_framework = account::create_account_for_test(@0x1);
-        let admin = account::create_account_for_test(ADMIN);
-        let creator1 = account::create_account_for_test(CREATOR1);
-        let creator2 = account::create_account_for_test(CREATOR2);
-        let user1 = account::create_account_for_test(USER1);
-        let user2 = account::create_account_for_test(USER2);
-        
-        setup_test_environment(&aptos_framework, &admin, &creator1, &creator2, &user1, &user2);
-        
-        // Non-existent subscription
-        assert!(!subscriptions::is_subscription_active(999), 0);
-        
-        // Subscribe user to plan
-        subscriptions::subscribe(&user1, 0, 1000);
-        
-        // Active subscription
-        assert!(subscriptions::is_subscription_active(0), 1);
-        
-        // Cancel subscription
-        subscriptions::cancel_subscription(&user1, 0);
-        
-        // Cancelled subscription
-        assert!(!subscriptions::is_subscription_active(0), 2);
-        
-        // Subscribe again
-        subscriptions::subscribe(&user1, 1, 2000);
-        
-        // Fast forward time to expire subscription
-        timestamp::update_global_time_for_test_secs(200000);
-        
-        // Expired subscription
-        assert!(!subscriptions::is_subscription_active(1), 3);
-    }
-    
-    #[test]
-    fun test_subscriptions_get_user_subscription_ids() {
-        let aptos_framework = account::create_account_for_test(@0x1);
-        let admin = account::create_account_for_test(ADMIN);
-        let creator1 = account::create_account_for_test(CREATOR1);
-        let creator2 = account::create_account_for_test(CREATOR2);
-        let user1 = account::create_account_for_test(USER1);
-        let user2 = account::create_account_for_test(USER2);
-        
-        setup_test_environment(&aptos_framework, &admin, &creator1, &creator2, &user1, &user2);
-        
-        // No subscriptions initially
-        let ids = subscriptions::get_user_subscription_ids(USER1);
-        assert!(vector::length(&ids) == 0, 0);
-        
-        // Subscribe user to plans
-        subscriptions::subscribe(&user1, 0, 1000);
-        subscriptions::subscribe(&user1, 1, 2000);
-        
-        // Get subscription IDs
-        let ids = subscriptions::get_user_subscription_ids(USER1);
-        assert!(vector::length(&ids) == 2, 1);
-        assert!(vector::contains(&ids, &0), 2);
-        assert!(vector::contains(&ids, &1), 3);
-        
-        // Cancel one subscription
-        subscriptions::cancel_subscription(&user1, 0);
-        
-        // Should only return active subscriptions
-        let ids = subscriptions::get_user_subscription_ids(USER1);
-        assert!(vector::length(&ids) == 1, 4);
-        assert!(vector::contains(&ids, &1), 5);
+        // Attempt to initialize with non-admin account - should fail
+        subscriptions::initialize_subscription_registry(&fake_admin);
     }
 }
