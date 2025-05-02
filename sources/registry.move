@@ -58,7 +58,7 @@ module subscription::registry {
 
     public entry fun initialize(admin: &signer) acquires SubscriptionRegistry {
         let admin_addr = signer::address_of(admin);
-        let registry = borrow_global_mut<SubscriptionRegistry>(@subscription);
+        
         assert!(admin_addr == @subscription, ERR_NOT_AUTHORIZED);
         assert!(!exists<SubscriptionRegistry>(admin_addr), ERR_REGISTRY_ALREADY_EXISTS);
 
@@ -80,6 +80,8 @@ module subscription::registry {
             config_updated_event: account::new_event_handle<ConfigUpdatedEvent>(admin),
             creator_verification_event: account::new_event_handle<CreatorVerificationEvent>(admin)
         });
+
+        let registry = borrow_global_mut<SubscriptionRegistry>(@subscription);
 
         event::emit_event(&mut registry.registry_initialized_event, RegistryInitializedEvent {
             admin: admin_addr,
